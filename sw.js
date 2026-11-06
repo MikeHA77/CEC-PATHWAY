@@ -1,6 +1,6 @@
 /* CEC Pathway Viewer – offline helper.
    Change VERSION whenever you upload a new index.html so devices pick up the update. */
-const VERSION = 'cec-pathway-v1';
+const VERSION = 'cec-pathway-v3';
 const FILES = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './apple-touch-icon.png'];
 
 self.addEventListener('install', e => {
