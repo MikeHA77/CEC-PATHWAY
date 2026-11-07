@@ -107,7 +107,7 @@
   #tocList .row.excl a{color:#9aa3ad;text-decoration:line-through;text-decoration-color:#d32f2f;text-decoration-thickness:2px}
   #tocList .row input.exc{width:20px;height:20px;margin:0 2px 0 6px;flex:0 0 auto;accent-color:#d32f2f}
   #toc .exbar{display:flex;gap:8px;align-items:center;padding:0 8px 4px}
-  #toc .exbar button{min-height:32px;font-size:13px}
+  #toc .exbar button{min-height:34px;font-size:14px;font-weight:700;color:#b71c1c;background:#fdecea;border:2px solid #d32f2f;border-radius:8px;padding:0 14px}
   #toc .exbar button.on{background:#d32f2f;border-color:#d32f2f;color:#fff;font-weight:600}
   #toc .exbar span{font-size:12px;color:var(--muted)}
   #tocList li.exall{padding:6px 8px;font-size:13px;color:#d32f2f;display:flex;align-items:center;gap:6px}
@@ -461,7 +461,9 @@ async function load(buf, name){
   await show(1);                       // always open at page 1
   measureAll();
   renderCards();
-  buildUnits().then(()=>{ S.excl=new Set(LS.get('excl:'+S.fp, [])); if(S.excl.size) applyExclusions(); }).catch(e=>console.error(e));
+  buildUnits().then(()=>{ S.excl=new Set(LS.get('excl:'+S.fp, []));
+    if(!LS.get('introDef:'+S.fp, false)){ S.excl.add('Intro'); LS.set('introDef:'+S.fp, true); LS.set('excl:'+S.fp, [...S.excl]); }
+    if(S.excl.size) applyExclusions(); }).catch(e=>console.error(e));
 }
 
 async function buildOutline(){
@@ -982,7 +984,7 @@ let tocT; $('tocFilter').oninput = () => { clearTimeout(tocT); tocT=setTimeout(r
 
 async function tocItems(){
   const T=S.tree||[];
-  if(TOC.tab==='sec') return T.filter(i=>/^Section \d+/.test(i.title));
+  if(TOC.tab==='sec'){ const secs=T.filter(i=>/^Section \d+/.test(i.title)); return TOC.exmode ? [INTRO_IT, ...secs] : secs; }
   if(TOC.tab==='tab'){
     const t=T.find(i=>i.title==='Tables'), d=T.find(i=>/^Appendix D\b/.test(i.title));
     const out=[...(t?t.items:[])];
@@ -1046,7 +1048,7 @@ function tocItem(it, depth){
     row.appendChild(b);
   }
   li.appendChild(row);
-  pageLabelFor(it).then(t=>{ pg.textContent=t; });
+  if(it._pg) pg.textContent=it._pg; else pageLabelFor(it).then(t=>{ pg.textContent=t; });
   return li;
 }
 async function destOf(it){ if(it._d) return it._d; if(!plCache.has(it)) plCache.set(it, await resolveDest(it.dest)); return plCache.get(it); }
@@ -1248,6 +1250,7 @@ window.addEventListener('resize', ()=>{ clearTimeout(window._sbT); window._sbT=s
 
 /* ---------- exclusions: hide chosen sections / tables / diagrams / appendices ---------- */
 S.excl=new Set(); S.units=[]; S.pst=[]; S.runs=new Map(); S.partials=new Map();
+const INTRO_IT={ title:'Intro', _d:{ page:2, top:null }, _pg:'PDF p. 2–6', items:[] };
 const unitIdOf = it => { const t=it.title||''; let m=t.match(/^(Table D?\d+[A-Z]*)\b/); if(m) return m[1]; m=t.match(/^(Diagram \d+)\b/); if(m) return m[1]; return t; };
 const cmpPos = (a,b) => a.page-b.page || a.f-b.f;
 async function posOf(d){
@@ -1263,6 +1266,7 @@ async function buildUnits(){
   const END={ page:S.n+1, f:0 };
   const after = i => i+1<tops.length ? tops[i+1].p : END;
   const U=[];
+  if(S.n>=7) U.push({ id:'Intro', title:'Intro', kind:'sec', start:{ page:2, f:0 }, end:{ page:7, f:0 } });
   tops.forEach((t,i)=>{
     const ti=t.it.title;
     const kind=/^Section \d+/.test(ti)?'sec':/^Appendix [A-M]\b/.test(ti)?'app':/^Index\b/.test(ti)?'idx':null;
@@ -1364,7 +1368,7 @@ async function renderHead(p){
   tt.appendChild(k);
   units.slice(0,3).forEach(u=>{ const b=document.createElement('b'); b.textContent=u.title.slice(0,110); tt.appendChild(b); });
   const sp=document.createElement('span');
-  sp.textContent=(units.length>3?`+ ${units.length-3} more · `:'')+(u0.start.page===last ? `${label(last)} omitted` : `pp. ${label(u0.start.page).replace(/^p\. /,'')}–${label(last).replace(/^p\. /,'')} omitted`);
+  sp.textContent=(units.length>3?`+ ${units.length-3} more · `:'')+(u0.start.page===last ? `${label(last)} omitted` : (()=>{ const A=label(u0.start.page), B=label(last), pdf=/^PDF /.test(A)&&/^PDF /.test(B); const t=x=>x.replace(/^(PDF )?p\. /,''); return `${pdf?'PDF ':''}pp. ${t(A)}–${t(B)} omitted`; })());
   tt.appendChild(sp);
   const btn=document.createElement('button'); btn.textContent='Show again';
   btn.onclick=e=>{ e.stopPropagation(); setExcl(units.map(u=>u.id), false); if(!$('toc').hidden) renderToc(); };
